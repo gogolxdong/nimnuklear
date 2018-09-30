@@ -26,8 +26,8 @@ import nimnuklear/nuklear
 
 type
   Sdl_device* {.bycopy.} = object
-    cmds*: nuklear.buffer
-    null*: nuklear.draw_null_texture
+    cmds*: buffer
+    null*: draw_null_texture
     vbo*: GLuint
     vao*: GLuint
     ebo*: GLuint
@@ -69,7 +69,7 @@ proc nk_sdl_device_create*() =
   defer: deallocCStringArray(fragment_shader_z)
 
   var dev: ptr Sdl_device = addr(sdl.ogl)
-  nuklear.buffer_init_default(addr(dev.cmds))
+  buffer_init_default(addr(dev.cmds))
   dev.prog = glCreateProgram()
   dev.vert_shdr = glCreateShader(GL_VERTEX_SHADER)
   dev.frag_shdr = glCreateShader(GL_FRAGMENT_SHADER)
@@ -140,17 +140,17 @@ proc nk_sdl_device_destroy*() =
   glDeleteTextures(1, addr(dev.font_tex))
   glDeleteBuffers(1, addr(dev.vbo))
   glDeleteBuffers(1, addr(dev.ebo))
-  nuklear.buffer_free(addr(dev.cmds))
+  buffer_free(addr(dev.cmds))
 
 #define nk_draw_foreach(cmd,ctx, b) for((cmd)=nk__draw_begin(ctx, b); (cmd)!=0; (cmd)=nk__draw_next(cmd, b, ctx))
 ## FIXME: Put this in the nuklear implementation itself
-iterator draw_foreach(ctx: ptr nuklear.context, b: ptr nuklear.buffer): ptr nuklear.draw_command =
-  var cmd = nuklear.draw_begin(ctx, b)
+iterator draw_foreach(ctx: ptr context, b: ptr buffer): ptr draw_command =
+  var cmd = draw_begin(ctx, b)
   while not cmd.isNil:
     yield cmd
-    cmd = nuklear.draw_next(cmd, b, ctx)
+    cmd = draw_next(cmd, b, ctx)
 
-proc nk_sdl_render*(AA: nuklear.anti_aliasing; max_vertex_buffer: cint;
+proc nk_sdl_render*(AA: anti_aliasing; max_vertex_buffer: cint;
                    max_element_buffer: cint) =
   var dev: ptr Sdl_device = addr(sdl.ogl)
   var
@@ -159,7 +159,7 @@ proc nk_sdl_render*(AA: nuklear.anti_aliasing; max_vertex_buffer: cint;
   var
     display_width: cint
     display_height: cint
-  var scale: nuklear.vec2
+  var scale: vec2
   var ortho: array[4, array[4, GLfloat]] = [
     [2.0'f32, 0.0'f32, 0.0'f32, 0.0'f32],
     [0.0'f32, -2.0'f32, 0.0'f32, 0.0'f32],
@@ -192,12 +192,12 @@ proc nk_sdl_render*(AA: nuklear.anti_aliasing; max_vertex_buffer: cint;
 
   ##  convert from command queue into draw list and draw to screen
   var
-    cmd: ptr nuklear.draw_command
+    cmd: ptr draw_command
     vertices: pointer
     elements: pointer
     offset: system.uint = 0
-    vbuf: nuklear.buffer
-    ebuf: nuklear.buffer
+    vbuf: buffer
+    ebuf: buffer
 
   ##  allocate vertex and element buffer
   glBindVertexArray(dev.vao)
@@ -212,36 +212,36 @@ proc nk_sdl_render*(AA: nuklear.anti_aliasing; max_vertex_buffer: cint;
   elements = glMapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY)
 
   ##  fill convert configuration
-  var config: nuklear.convert_config
-  var vertex_layout {.global.}: array[4, nuklear.draw_vertex_layout_element] = [
-    nuklear.draw_vertex_layout_element(
-      attribute: nuklear.VERTEX_POSITION,
-      format: nuklear.FORMAT_FLOAT,
+  var config: convert_config
+  var vertex_layout {.global.}: array[4, draw_vertex_layout_element] = [
+    draw_vertex_layout_element(
+      attribute: VERTEX_POSITION,
+      format: FORMAT_FLOAT,
       offset: cast[ptr nuklear.uint](0)
     ),
-    nuklear.draw_vertex_layout_element(
-      attribute: nuklear.VERTEX_TEXCOORD,
-      format: nuklear.FORMAT_FLOAT,
+    draw_vertex_layout_element(
+      attribute: VERTEX_TEXCOORD,
+      format: FORMAT_FLOAT,
       offset: cast[ptr nuklear.uint](sizeof(Sdl_vertex.position))
     ),
-    nuklear.draw_vertex_layout_element(
-      attribute: nuklear.VERTEX_COLOR,
-      format: nuklear.FORMAT_R8G8B8A8,
+    draw_vertex_layout_element(
+      attribute: VERTEX_COLOR,
+      format: FORMAT_R8G8B8A8,
       offset: cast[ptr nuklear.uint](sizeof(Sdl_vertex.position) + sizeof(Sdl_vertex.uv))
     ),
     # NK_VERTEX_LAYOUT_END
-    nuklear.draw_vertex_layout_element(
-      attribute: nuklear.VERTEX_ATTRIBUTE_COUNT,
-      format: nuklear.FORMAT_COUNT,
+    draw_vertex_layout_element(
+      attribute: VERTEX_ATTRIBUTE_COUNT,
+      format: FORMAT_COUNT,
       offset: nil
     )
   ]
   zeroMem(addr(config), sizeof(config))
   config.vertex_layout = addr vertex_layout[0]
-  config.vertex_size = cast[nuklear.size](sizeof(Sdl_vertex))
+  config.vertex_size = cast[size](sizeof(Sdl_vertex))
   ## FIXME: Nim doesn't have alignof.  The original invocation was:
   ##        NK_ALIGNOF(struct nk_sdl_vertex)
-  config.vertex_alignment = cast[nuklear.size](8)
+  config.vertex_alignment = cast[size](8)
   config.null = dev.null
   config.circle_segment_count = 22
   config.curve_segment_count = 22
@@ -251,9 +251,9 @@ proc nk_sdl_render*(AA: nuklear.anti_aliasing; max_vertex_buffer: cint;
   config.line_AA = AA
 
   ##  setup buffers to load vertices and elements
-  nuklear.buffer_init_fixed(addr(vbuf), vertices, cast[nuklear.size](max_vertex_buffer))
-  nuklear.buffer_init_fixed(addr(ebuf), elements, cast[nuklear.size](max_element_buffer))
-  discard nuklear.convert(addr(sdl.ctx), addr(dev.cmds), addr(vbuf), addr(ebuf), addr(config))
+  buffer_init_fixed(addr(vbuf), vertices, cast[size](max_vertex_buffer))
+  buffer_init_fixed(addr(ebuf), elements, cast[size](max_element_buffer))
+  discard convert(addr(sdl.ctx), addr(dev.cmds), addr(vbuf), addr(ebuf), addr(config))
 
   discard glUnmapBuffer(GL_ARRAY_BUFFER)
   discard glUnmapBuffer(GL_ELEMENT_ARRAY_BUFFER)
@@ -273,9 +273,9 @@ proc nk_sdl_render*(AA: nuklear.anti_aliasing; max_vertex_buffer: cint;
                   cast[pointer](offset))
 
     # The original code is offset += cmd->elem_count.
-    inc(offset, system.int(cmd.elem_count) * sizeof(nuklear.draw_index))
+    inc(offset, system.int(cmd.elem_count) * sizeof(draw_index))
 
-  nuklear.clear(addr(sdl.ctx))
+  clear(addr(sdl.ctx))
 
   # default OpenGL state
   glUseProgram(0)
@@ -285,12 +285,12 @@ proc nk_sdl_render*(AA: nuklear.anti_aliasing; max_vertex_buffer: cint;
   glDisable(GL_BLEND)
   glDisable(GL_SCISSOR_TEST)
 
-proc nk_sdl_clipbard_paste*(usr: nuklear.handle; edit: ptr nuklear.text_edit) {.cdecl.} =
+proc nk_sdl_clipbard_paste*(usr: handle; edit: ptr text_edit) {.cdecl.} =
   var text: cstring = sdl2.getClipboardText()
   if not text.isNil:
-    discard nuklear.textedit_paste(edit, text, nuklear.strlen(text))
+    discard textedit_paste(edit, text, strlen(text))
 
-proc nk_sdl_clipbard_copy*(usr: nuklear.handle; text: cstring; len: cint) {.cdecl.} =
+proc nk_sdl_clipbard_copy*(usr: handle; text: cstring; len: cint) {.cdecl.} =
   var str: cstring = nil
   if len == 0:
     return
@@ -302,18 +302,18 @@ proc nk_sdl_clipbard_copy*(usr: nuklear.handle; text: cstring; len: cint) {.cdec
   str[len] = '\x00'
   discard sdl2.setClipboardText(str)
 
-proc nk_sdl_init*(win: sdl2.WindowPtr): ptr nuklear.context =
+proc nk_sdl_init*(win: sdl2.WindowPtr): ptr context =
   sdl.win = win
-  discard nuklear.init_default(addr(sdl.ctx), nil)
+  discard init_default(addr(sdl.ctx), nil)
   sdl.ctx.clip.copy = nk_sdl_clipbard_copy
   sdl.ctx.clip.paste = nk_sdl_clipbard_paste
-  sdl.ctx.clip.userdata = nuklear.handle_ptr(nil)
+  sdl.ctx.clip.userdata = handle_ptr(nil)
   nk_sdl_device_create()
   return addr(sdl.ctx)
 
-proc nk_sdl_font_stash_begin*(atlas: ptr ptr nuklear.font_atlas) =
-  nuklear.font_atlas_init_default(addr(sdl.atlas))
-  nuklear.font_atlas_begin(addr(sdl.atlas))
+proc nk_sdl_font_stash_begin*(atlas: ptr ptr font_atlas) =
+  font_atlas_init_default(addr(sdl.atlas))
+  font_atlas_begin(addr(sdl.atlas))
   atlas[] = addr(sdl.atlas)
 
 proc nk_sdl_font_stash_end*() =
@@ -321,71 +321,71 @@ proc nk_sdl_font_stash_end*() =
   var
     w: cint
     h: cint
-  image = nuklear.font_atlas_bake(addr(sdl.atlas), addr(w), addr(h),
-                           nuklear.FONT_ATLAS_RGBA32)
+  image = font_atlas_bake(addr(sdl.atlas), addr(w), addr(h),
+                           FONT_ATLAS_RGBA32)
   nk_sdl_device_upload_atlas(image, w, h)
-  nuklear.font_atlas_end(addr(sdl.atlas),
-                    nuklear.handle_id(cast[cint](sdl.ogl.font_tex)),
+  font_atlas_end(addr(sdl.atlas),
+                    handle_id(cast[cint](sdl.ogl.font_tex)),
                     addr(sdl.ogl.null))
   if not sdl.atlas.default_font.isNil:
-    nuklear.style_set_font(addr(sdl.ctx), addr(sdl.atlas.default_font.handle))
+    style_set_font(addr(sdl.ctx), addr(sdl.atlas.default_font.handle))
 
 proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
   const SCANCODE_LCTRL = system.int(sdl2.SDL_SCANCODE_LCTRL)
-  var ctx: ptr nuklear.context = addr(sdl.ctx)
+  var ctx: ptr context = addr(sdl.ctx)
   if evt.kind == sdl2.KeyUp or evt.kind == sdl2.KeyDown:
     ##  key events
     var down = evt.kind == sdl2.KeyDown
     var state = sdl2.getKeyboardState()
     var sym = evt[].key.keysym.sym
     if sym == K_RSHIFT or sym == K_LSHIFT:
-      nuklear.input_key(ctx, nuklear.KEY_SHIFT, down.cint)
+      input_key(ctx, KEY_SHIFT, down.cint)
     elif sym == K_DELETE:
-      nuklear.input_key(ctx, nuklear.KEY_DEL, down.cint)
+      input_key(ctx, KEY_DEL, down.cint)
     elif sym == K_RETURN:
-      nuklear.input_key(ctx, nuklear.KEY_ENTER, down.cint)
+      input_key(ctx, KEY_ENTER, down.cint)
     elif sym == K_TAB:
-      nuklear.input_key(ctx, nuklear.KEY_TAB, down.cint)
+      input_key(ctx, KEY_TAB, down.cint)
     elif sym == K_BACKSPACE:
-      nuklear.input_key(ctx, nuklear.KEY_BACKSPACE, down.cint)
+      input_key(ctx, KEY_BACKSPACE, down.cint)
     elif sym == K_HOME:
-      nuklear.input_key(ctx, nuklear.KEY_TEXT_START, down.cint)
-      nuklear.input_key(ctx, nuklear.KEY_SCROLL_START, down.cint)
+      input_key(ctx, KEY_TEXT_START, down.cint)
+      input_key(ctx, KEY_SCROLL_START, down.cint)
     elif sym == K_END:
-      nuklear.input_key(ctx, nuklear.KEY_TEXT_END, down.cint)
-      nuklear.input_key(ctx, nuklear.KEY_SCROLL_END, down.cint)
+      input_key(ctx, KEY_TEXT_END, down.cint)
+      input_key(ctx, KEY_SCROLL_END, down.cint)
     elif sym == K_PAGEDOWN:
-      nuklear.input_key(ctx, nuklear.KEY_SCROLL_DOWN, down.cint)
+      input_key(ctx, KEY_SCROLL_DOWN, down.cint)
     elif sym == K_PAGEUP:
-      nuklear.input_key(ctx, nuklear.KEY_SCROLL_UP, down.cint)
+      input_key(ctx, KEY_SCROLL_UP, down.cint)
     elif sym == K_z:
-      nuklear.input_key(ctx, nuklear.KEY_TEXT_UNDO, down.cint and state[SCANCODE_LCTRL].cint)
+      input_key(ctx, KEY_TEXT_UNDO, down.cint and state[SCANCODE_LCTRL].cint)
     elif sym == K_r:
-      nuklear.input_key(ctx, nuklear.KEY_TEXT_REDO, down.cint and state[SCANCODE_LCTRL].cint)
+      input_key(ctx, KEY_TEXT_REDO, down.cint and state[SCANCODE_LCTRL].cint)
     elif sym == K_c:
-      nuklear.input_key(ctx, nuklear.KEY_COPY, down.cint and state[SCANCODE_LCTRL].cint)
+      input_key(ctx, KEY_COPY, down.cint and state[SCANCODE_LCTRL].cint)
     elif sym == K_v:
-      nuklear.input_key(ctx, nuklear.KEY_PASTE, down.cint and state[SCANCODE_LCTRL].cint)
+      input_key(ctx, KEY_PASTE, down.cint and state[SCANCODE_LCTRL].cint)
     elif sym == K_x:
-      nuklear.input_key(ctx, nuklear.KEY_CUT, down.cint and state[SCANCODE_LCTRL].cint)
+      input_key(ctx, KEY_CUT, down.cint and state[SCANCODE_LCTRL].cint)
     elif sym == K_b:
-      nuklear.input_key(ctx, nuklear.KEY_TEXT_LINE_START, down.cint and state[SCANCODE_LCTRL].cint)
+      input_key(ctx, KEY_TEXT_LINE_START, down.cint and state[SCANCODE_LCTRL].cint)
     elif sym == K_e:
-      nuklear.input_key(ctx, nuklear.KEY_TEXT_LINE_END, down.cint and state[SCANCODE_LCTRL].cint)
+      input_key(ctx, KEY_TEXT_LINE_END, down.cint and state[SCANCODE_LCTRL].cint)
     elif sym == K_UP:
-      nuklear.input_key(ctx, nuklear.KEY_UP, down.cint)
+      input_key(ctx, keys.KEY_UP, down.cint)
     elif sym == K_DOWN:
-      nuklear.input_key(ctx, nuklear.KEY_DOWN, down.cint)
+      input_key(ctx, keys.KEY_DOWN, down.cint)
     elif sym == K_LEFT:
       if state[SCANCODE_LCTRL] == 1:
-        nuklear.input_key(ctx, nuklear.KEY_TEXT_WORD_LEFT, down.cint)
+        input_key(ctx, KEY_TEXT_WORD_LEFT, down.cint)
       else:
-        nuklear.input_key(ctx, nuklear.KEY_LEFT, down.cint)
+        input_key(ctx, KEY_LEFT, down.cint)
     elif sym == K_RIGHT:
       if state[SCANCODE_LCTRL] == 1:
-        nuklear.input_key(ctx, nuklear.KEY_TEXT_WORD_RIGHT, down.cint)
+        input_key(ctx, KEY_TEXT_WORD_RIGHT, down.cint)
       else:
-        nuklear.input_key(ctx, nuklear.KEY_RIGHT, down.cint)
+        input_key(ctx, KEY_RIGHT, down.cint)
     else:
       return 0
     return 1
@@ -397,12 +397,12 @@ proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
       y: cint = evt[].button.y
     if evt[].button.button == sdl2.BUTTON_LEFT:
       if evt[].button.clicks > 1'u8:
-        nuklear.input_button(ctx, nuklear.BUTTON_DOUBLE, x, y, down.cint)
-      nuklear.input_button(ctx, nuklear.BUTTON_LEFT, x, y, down.cint)
+        input_button(ctx, BUTTON_DOUBLE, x, y, down.cint)
+      input_button(ctx, buttons.BUTTON_LEFT, x, y, down.cint)
     elif evt[].button.button == sdl2.BUTTON_MIDDLE:
-      nuklear.input_button(ctx, nuklear.BUTTON_MIDDLE, x, y, down.cint)
+      input_button(ctx, buttons.BUTTON_MIDDLE, x, y, down.cint)
     elif evt[].button.button == sdl2.BUTTON_RIGHT:
-      nuklear.input_button(ctx, nuklear.BUTTON_RIGHT, x, y, down.cint)
+      input_button(ctx, buttons.BUTTON_RIGHT, x, y, down.cint)
     return 1
   elif evt.kind == sdl2.MouseMotion:
     ##  mouse motion
@@ -410,19 +410,19 @@ proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
       var
         x: cint = ctx.input.mouse.prev.x.cint
         y: cint = ctx.input.mouse.prev.y.cint
-      nuklear.input_motion(ctx, x + evt[].motion.xrel, y + evt[].motion.yrel)
+      input_motion(ctx, x + evt[].motion.xrel, y + evt[].motion.yrel)
     else:
-      nuklear.input_motion(ctx, evt[].motion.x, evt[].motion.y)
+      input_motion(ctx, evt[].motion.x, evt[].motion.y)
     return 1
   elif evt.kind == sdl2.TextInput:
     ##  text input
-    var glyph: nuklear.glyph
-    copyMem(addr glyph[0], addr evt[].text.text[0], nuklear.UTF_SIZE)
-    nuklear.input_glyph(ctx, glyph)
+    var glyph: glyph
+    copyMem(addr glyph[0], addr evt[].text.text[0], UTF_SIZE)
+    input_glyph(ctx, glyph)
     return 1
   elif evt.kind == sdl2.MouseWheel:
     ##  mouse wheel
-    nuklear.input_scroll(ctx, nuklear.vec2(
+    input_scroll(ctx, vec2(
       x: evt[].wheel.x.cfloat,
       y: evt[].wheel.y.cfloat
     ))
@@ -430,7 +430,7 @@ proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
   return 0
 
 proc nk_sdl_shutdown*() =
-  nuklear.font_atlas_clear(addr(sdl.atlas))
-  nuklear.free(addr(sdl.ctx))
+  font_atlas_clear(addr(sdl.atlas))
+  free(addr(sdl.ctx))
   nk_sdl_device_destroy()
   zeroMem(addr sdl, sizeof(sdl))
