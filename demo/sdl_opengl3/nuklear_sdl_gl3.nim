@@ -334,7 +334,6 @@ proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
   const SCANCODE_LCTRL = system.int(sdl2.SDL_SCANCODE_LCTRL)
   var ctx: ptr context = addr(sdl.ctx)
   if evt.kind == sdl2.KeyUp or evt.kind == sdl2.KeyDown:
-    ##  key events
     var down = evt.kind == sdl2.KeyDown
     var state = sdl2.getKeyboardState()
     var sym = evt[].key.keysym.sym

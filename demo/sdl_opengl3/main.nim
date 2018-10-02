@@ -88,7 +88,7 @@ glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
 ctx = nk_sdl_init(win)
 ##  Load Fonts: if none of these are loaded a default font will be used
 ##  Load Cursor: if you uncomment cursor loading please hide the cursor
-var atlas: ptr nuklear.font_atlas
+var atlas: ptr font_atlas
 nk_sdl_font_stash_begin(addr(atlas))
 ## struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "../../../extra_font/DroidSans.ttf", 14, 0);
 ## struct nk_font *roboto = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Roboto-Regular.ttf", 16, 0);
@@ -114,13 +114,12 @@ bg.a = 1.0
 while running == 1:
   ##  Input
   var evt: sdl2.Event
-  nuklear.input_begin(ctx)
+  input_begin(ctx)
   while sdl2.pollEvent(evt):
     if evt.kind == QuitEvent:
-      # TODO: Handle cleanup
       quit(QuitFailure)
     discard nk_sdl_handle_event(addr(evt))
-  nuklear.input_end(ctx)
+  input_end(ctx)
 
   ##  GUI
   if nuklear.begin(ctx, "Demo".cstring,
@@ -162,7 +161,7 @@ while running == 1:
 
   ##  -------------- EXAMPLES ----------------
   when INCLUDE_CALCULATOR:
-    calculator.calculator(ctx)
+    calculator(ctx)
   when INCLUDE_OVERVIEW:
     overview(ctx)
   when INCLUDE_NODE_EDITOR:
@@ -179,7 +178,7 @@ while running == 1:
   ##  defaults everything back into a default state.
   ##  Make sure to either a.) save and restore or b.) reset your own state after
   ##  rendering the UI.
-  nk_sdl_render(nuklear.ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY)
+  nk_sdl_render(ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY)
   sdl2.glSwapWindow(win)
 
 # TODO: Implement clean shutdown
