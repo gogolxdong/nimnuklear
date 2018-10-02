@@ -33,7 +33,7 @@ proc calculator*(ctx: ptr context) =
     copyMem(buffercs, curstring.cstring, curstring.len)
     buffer[curstring.len + 1] = '\0'
     len = curstring.len.cint
-    discard nuklear.edit_string(ctx, EDIT_SIMPLE.flags, buffercs, addr(len), 255, filter_default)
+    discard nuklear.edit_string(ctx, EDIT_BOX.flags, buffercs, addr(len), 255, filter_default)
     buffer[len] = '\0'
     current[] = parseFloat($buffercs)
     echo a
