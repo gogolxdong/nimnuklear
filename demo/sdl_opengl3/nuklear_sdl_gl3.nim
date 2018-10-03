@@ -14,8 +14,8 @@
 
 import opengl, sdl2
 
-import nimnuklear/nuklear
-
+import nimnuklear/nuklear except true, false, char
+import net
 ## 
 ##  ==============================================================
 ## 
@@ -330,6 +330,10 @@ proc nk_sdl_font_stash_end*() =
   if not sdl.atlas.default_font.isNil:
     style_set_font(addr(sdl.ctx), addr(sdl.atlas.default_font.handle))
 
+var current* {.global.}: cstring = cast[cstring](alloc0(10))
+var length*: cint 
+var buffers*: cstring = cast[cstring](alloc0(256))
+
 proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
   const SCANCODE_LCTRL = system.int(sdl2.SDL_SCANCODE_LCTRL)
   var ctx: ptr context = addr(sdl.ctx)
@@ -342,7 +346,20 @@ proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
     elif sym == K_DELETE:
       input_key(ctx, KEY_DEL, down.cint)
     elif sym == K_RETURN:
-      input_key(ctx, KEY_ENTER, down.cint)
+      var ctrlReturn = down.cint and state[SCANCODE_LCTRL].cint
+      if ctrlReturn == 1:
+        zeroMem(current, 10)
+        var socket = dial("127.0.0.1", Port(1234))
+        defer: socket.close
+        try:
+          var content = $buffers
+          socket.send(content)
+          echo content
+          zeroMem(buffers, 256)
+        except:
+          echo getCurrentExceptionMsg()
+      else:
+        input_key(ctx, KEY_ENTER, down.cint)
     elif sym == K_TAB:
       input_key(ctx, KEY_TAB, down.cint)
     elif sym == K_BACKSPACE:
