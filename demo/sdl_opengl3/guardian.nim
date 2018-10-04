@@ -2,13 +2,34 @@ import nimnuklear/nuklear except true, false, char
 import opengl, sdl2, sdl2/net
 
 import nuklear_sdl_gl3, roboto_regular
-import asyncnet, asyncdispatch, strutils, nativesockets
+import asyncnet, asyncdispatch, strutils, nativesockets, threadpool
 
 var running = true
+proc listen() = 
+  var clients {.threadvar.}: seq[AsyncSocket]
+  proc processClient(client: AsyncSocket) {.async.} =
+    while true:
+      let line = await client.recvLine()
+      if line != "": 
+        echo line
+        zeroMem(buffercs, buffercs.len)
+        copyMem(addr buffers[0], line.cstring, line.len)
 
+  proc serve() {.async.} =
+    var server = newAsyncSocket(domain = AF_INET6)
+    server.setSockOpt(OptReuseAddr, true)
+    server.bindAddr(Port(1234))
+    server.listen()
 
+    while true:
+      let client = await server.accept()
+      clients.add client
+      asyncCheck processClient(client)
 
-proc GUI() {.async.}= 
+  asyncCheck serve()
+spawn listen()
+
+proc GUI() = 
   const
     WINDOW_WIDTH = 1200
     WINDOW_HEIGHT = 800
@@ -59,7 +80,7 @@ proc GUI() {.async.}=
   proc render() = 
     while running :
       if hasPendingOperations() :
-        poll(1)
+        poll(0)
       var evt: Event
       input_begin(ctx)
       while pollEvent(evt):
@@ -107,29 +128,5 @@ proc GUI() {.async.}=
 
     quit(QuitSuccess)
   render()
-asyncCheck GUI()
+GUI()
 
-proc listen() {.async.} = 
-  var clients {.threadvar.}: seq[AsyncSocket]
-  proc processClient(client: AsyncSocket) {.async.} =
-    while true:
-      let line = await client.recvLine()
-      if line != "": 
-        echo line
-        zeroMem(buffercs, buffercs.len)
-        copyMem(addr buffers[0], line.cstring, line.len)
-
-  proc serve() {.async.} =
-    var server = newAsyncSocket(domain = AF_INET6)
-    server.setSockOpt(OptReuseAddr, true)
-    server.bindAddr(Port(1234))
-    server.listen()
-
-    while true:
-      let client = await server.accept()
-      clients.add client
-      asyncCheck processClient(client)
-
-  asyncCheck serve()
-  runForever()
-asyncCheck listen()
