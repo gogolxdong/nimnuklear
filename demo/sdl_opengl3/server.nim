@@ -5,7 +5,13 @@ var clients {.threadvar.}: seq[AsyncSocket]
 proc listen() {.async.} = 
   proc processClient(client: AsyncSocket) {.async.} =
     while true:
+<<<<<<< HEAD
       let line = await client.recvLine()
+=======
+      let line = await client.recv(1024)
+      echo line
+      if line.len == 0: break
+>>>>>>> 84a8300ced88f4e590acc8ef4181b4f98a6c15c9
       for c in clients:
         await c.send(line & "\c\L")
 
