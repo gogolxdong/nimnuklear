@@ -80,8 +80,6 @@ proc GUI() =
   bg.a = 1.0
   proc render() = 
     while running :
-      if hasPendingOperations() :
-        poll(0)
       var evt: Event
       input_begin(ctx)
       while pollEvent(evt):
