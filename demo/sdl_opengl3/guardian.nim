@@ -25,6 +25,20 @@ proc AudioCallback_2(userdata: pointer; stream: ptr uint8; len: cint) {.cdecl.}=
 
 proc listen() = 
   var clients : seq[AsyncSocket]
+  if init(INIT_AUDIO) != SdlSuccess:
+    echo("Couldn't initialize SDL")
+  var audioSpec: AudioSpec
+  audioSpec.freq = cint(SampleRate)
+  audioSpec.format = AUDIO_F32LSB 
+  audioSpec.channels = 2       
+  audioSpec.samples = RQBufferSizeInBytes
+  audioSpec.padding = 0
+  audioSpec.callback = AudioCallback_2
+  audioSpec.userdata = nil
+  if openAudio(addr(audioSpec), addr(obtained)) != 0:
+    echo("Couldn't open audio device. " & $sdl2.getError())
+  if obtained.format != AUDIO_F32LSB:
+    echo("Couldn't open 32-bit audio channel.")
   proc processClient(client: AsyncSocket) {.async.} =
     while true:
       let line = await client.recvLine()
@@ -32,26 +46,9 @@ proc listen() =
         echo line
         zeroMem(buffercs, buffercs.len)
         copyMem(addr buffers[0], line.cstring, line.len)
-        if init(INIT_AUDIO) != SdlSuccess:
-          echo("Couldn't initialize SDL")
-          break
-        var audioSpec: AudioSpec
-        audioSpec.freq = cint(SampleRate)
-        audioSpec.format = AUDIO_F32LSB 
-        audioSpec.channels = 2       
-        audioSpec.samples = RQBufferSizeInBytes
-        audioSpec.padding = 0
-        audioSpec.callback = AudioCallback_2
-        audioSpec.userdata = nil
-        if openAudio(addr(audioSpec), addr(obtained)) != 0:
-          echo("Couldn't open audio device. " & $sdl2.getError())
-          break
-        if obtained.format != AUDIO_F32LSB:
-          echo("Couldn't open 32-bit audio channel.")
-          break
         pauseAudio(0)
-        delay(1)
-        
+        delay(10)
+        pauseAudio(1)
 
   proc serve() {.async.} =
     var server = newAsyncSocket(domain = AF_INET6)
