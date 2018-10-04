@@ -15,7 +15,7 @@
 import opengl, sdl2
 
 import nimnuklear/nuklear except true, false, char
-import net
+import net, packedjson, strutils
 ## 
 ##  ==============================================================
 ## 
@@ -331,13 +331,12 @@ proc nk_sdl_font_stash_end*() =
     style_set_font(addr(sdl.ctx), addr(sdl.atlas.default_font.handle))
 
 var length*: cint 
-var buffers*: array[256, char] #= cast[cstring](alloc0(256))
+var buffers*: array[256, char] 
 var current* {.global.} : ptr char = addr buffers[0]
 
 var buffercs*: cstring = cast[cstring](addr buffers[0])
 
-const haixiaIpv6Address = "2002:6fdd:f3f6:0:601c:9fdc:b981:3e7a"
-const ipv6Address = "2002:6fdd:f3f6:0:fd62:101:a804:5b99"
+let ipv6Address = parseFile("ipconfig.json")["dial_ipv6"].getStr() 
 
 proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
   const SCANCODE_LCTRL = system.int(sdl2.SDL_SCANCODE_LCTRL)
@@ -357,10 +356,10 @@ proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
           var socket = dial(ipv6Address, Port(1234))
           defer: socket.close
           var content = $buffercs
-          echo content
-          echo content.len
+          echo buffers
+          # content = content.replace("\n","\r\L")
           socket.send(content & "\r\L")
-          zeroMem(addr buffers[0], 256)
+          zeroMem(buffercs, buffercs.len)
         except:
           echo getCurrentExceptionMsg()
       else:

@@ -2,34 +2,13 @@ import nimnuklear/nuklear except true, false, char
 import opengl, sdl2, sdl2/net
 
 import nuklear_sdl_gl3, roboto_regular
-import asyncnet, asyncdispatch, strutils, threadpool, nativesockets
+import asyncnet, asyncdispatch, strutils, nativesockets
 
 var running = true
 
-proc listen() = 
-  var clients {.threadvar.}: seq[AsyncSocket]
-  proc processClient(client: AsyncSocket) {.async.} =
-    while true:
-      let line = await client.recvLine()
-      if line != "": 
-        copyMem(addr buffers[0], line.cstring, line.len)
 
-  proc serve() {.async.} =
-    var server = newAsyncSocket(domain = AF_INET6)
-    server.setSockOpt(OptReuseAddr, true)
-    server.bindAddr(Port(1234))
-    server.listen()
 
-    while true:
-      let client = await server.accept()
-      clients.add client
-      asyncCheck processClient(client)
-
-  asyncCheck serve()
-  runForever()
-spawn listen()
-
-proc GUI() = 
+proc GUI() {.async.}= 
   const
     WINDOW_WIDTH = 1200
     WINDOW_HEIGHT = 800
@@ -45,26 +24,21 @@ proc GUI() =
   var
     win_width: cint
     win_height: cint
-
-
   ##  GUI
   var ctx: ptr context
   var bg: colorf
-
   ##  SDL setup
   discard sdl2.setHint("SDL_VIDEO_HIGHDPI_DISABLED", "0")
   when not defined(vcc):
     discard sdl2.setHint("SDL_WINDOWS_DISABLE_THREAD_NAMING", "1")
-  sdl2.init(sdl2.INIT_VIDEO or sdl2.INIT_TIMER or sdl2.INIT_EVENTS)
-  discard sdl2.glSetAttribute(SDL_GL_CONTEXT_FLAGS,
-                              SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG)
+  sdl2.init(INIT_VIDEO or INIT_TIMER or INIT_EVENTS or INIT_AUDIO)
+  discard sdl2.glSetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG)
   discard sdl2.glSetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE)
   discard sdl2.glSetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3)
   discard sdl2.glSetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3)
   discard sdl2.glSetAttribute(SDL_GL_DOUBLEBUFFER, 1)
-  win = sdl2.createWindow("Garden", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                          WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL or
-                          SDL_WINDOW_SHOWN or SDL_WINDOW_ALLOW_HIGHDPI)
+  win = sdl2.createWindow("Guardian", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                          WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_ALLOW_HIGHDPI)
   glContext = sdl2.glCreateContext(win)
   win.getSize(win_width, win_height)
 
@@ -84,8 +58,8 @@ proc GUI() =
   bg.a = 1.0
   proc render() = 
     while running :
-      if hasPendingOperations():
-        poll()
+      if hasPendingOperations() :
+        poll(1)
       var evt: Event
       input_begin(ctx)
       while pollEvent(evt):
@@ -95,12 +69,12 @@ proc GUI() =
       input_end(ctx)
 
       ##  GUI
-      if begin(ctx, "Garden".cstring,
-               rect(x:50, y:50, w:230, h:250),
-               flags(WINDOW_BORDER or WINDOW_MOVABLE or WINDOW_SCALABLE or WINDOW_MINIMIZABLE or WINDOW_TITLE)) == 1:
+      if begin(ctx, "Guardian".cstring,
+               rect(x:50, y:50, w:800, h:600),
+               flags(WINDOW_BORDER or WINDOW_MOVABLE or WINDOW_SCALABLE or WINDOW_MINIMIZABLE or WINDOW_TITLE or WINDOW_CLOSABLE)) == 1:
 
 
-        layout_row_dynamic(ctx, 35, 1)
+        layout_row_dynamic(ctx, 200, 1)
         length = current.len.cint
         copyMem(buffercs, current, length)
         buffers[length + 1] = '\0'
@@ -133,5 +107,29 @@ proc GUI() =
 
     quit(QuitSuccess)
   render()
+asyncCheck GUI()
 
-GUI()
+proc listen() {.async.} = 
+  var clients {.threadvar.}: seq[AsyncSocket]
+  proc processClient(client: AsyncSocket) {.async.} =
+    while true:
+      let line = await client.recvLine()
+      if line != "": 
+        echo line
+        zeroMem(buffercs, buffercs.len)
+        copyMem(addr buffers[0], line.cstring, line.len)
+
+  proc serve() {.async.} =
+    var server = newAsyncSocket(domain = AF_INET6)
+    server.setSockOpt(OptReuseAddr, true)
+    server.bindAddr(Port(1234))
+    server.listen()
+
+    while true:
+      let client = await server.accept()
+      clients.add client
+      asyncCheck processClient(client)
+
+  asyncCheck serve()
+  runForever()
+asyncCheck listen()
