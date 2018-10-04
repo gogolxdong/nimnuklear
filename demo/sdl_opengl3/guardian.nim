@@ -6,7 +6,7 @@ import asyncnet, asyncdispatch, strutils, nativesockets, threadpool
 
 var running = true
 proc listen() = 
-  var clients {.threadvar.}: seq[AsyncSocket]
+  var clients : seq[AsyncSocket]
   proc processClient(client: AsyncSocket) {.async.} =
     while true:
       let line = await client.recvLine()
@@ -27,6 +27,7 @@ proc listen() =
       asyncCheck processClient(client)
 
   asyncCheck serve()
+  runForever()
 spawn listen()
 
 proc GUI() = 

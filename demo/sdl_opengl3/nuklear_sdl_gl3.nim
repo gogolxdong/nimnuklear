@@ -357,7 +357,6 @@ proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
           defer: socket.close
           var content = $buffercs
           echo buffers
-          # content = content.replace("\n","\r\L")
           socket.send(content & "\r\L")
           zeroMem(buffercs, buffercs.len)
         except:
