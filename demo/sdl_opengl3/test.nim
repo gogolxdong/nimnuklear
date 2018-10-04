@@ -1,26 +1,41 @@
-##  nuklear - 1.32.0 - public domain
-
 import nimnuklear/nuklear except true, false, char
 import opengl, sdl2, sdl2/net
 
 import nuklear_sdl_gl3, roboto_regular
-import asyncnet, asyncdispatch, strutils, threadpool
-
-
-import asyncnet, asyncdispatch
+import asyncnet, asyncdispatch, strutils, threadpool, nativesockets
 
 var running = true
 
+proc listen() = 
+  var clients {.threadvar.}: seq[AsyncSocket]
+  proc processClient(client: AsyncSocket) {.async.} =
+    while true:
+      let line = await client.recvLine()
+      if line != "": 
+        copyMem(addr buffers[0], line.cstring, line.len)
 
-proc GUI() {.async.} = 
+  proc serve() {.async.} =
+    var server = newAsyncSocket(domain = AF_INET6)
+    server.setSockOpt(OptReuseAddr, true)
+    server.bindAddr(Port(1234))
+    server.listen()
+
+    while true:
+      let client = await server.accept()
+      clients.add client
+      asyncCheck processClient(client)
+
+  asyncCheck serve()
+  runForever()
+spawn listen()
+
+proc GUI() = 
   const
     WINDOW_WIDTH = 1200
     WINDOW_HEIGHT = 800
     MAX_VERTEX_MEMORY = 512 * 1024
     MAX_ELEMENT_MEMORY = 128 * 1024
 
-  ## FIXME: Necessary in order to combine panel flags.  This should really
-  ##        be a part of the bindings.
   proc `or`(a, b :panel_flags): panel_flags =
     return panel_flags(a.cint or b.cint)
 
@@ -69,6 +84,8 @@ proc GUI() {.async.} =
   bg.a = 1.0
   proc render() = 
     while running :
+      if hasPendingOperations():
+        poll()
       var evt: Event
       input_begin(ctx)
       while pollEvent(evt):
@@ -79,17 +96,14 @@ proc GUI() {.async.} =
 
       ##  GUI
       if begin(ctx, "Garden".cstring,
-                      rect(x:50, y:50, w:230, h:250),
-                      flags(WINDOW_BORDER or WINDOW_MOVABLE or
-                                    WINDOW_SCALABLE or WINDOW_MINIMIZABLE or
-                                    WINDOW_TITLE)) == 1:
+               rect(x:50, y:50, w:230, h:250),
+               flags(WINDOW_BORDER or WINDOW_MOVABLE or WINDOW_SCALABLE or WINDOW_MINIMIZABLE or WINDOW_TITLE)) == 1:
 
 
-        var buffercs: cstring = cast[cstring](addr buffers[0])
         layout_row_dynamic(ctx, 35, 1)
-        copyMem(buffercs, current, current.len)
-        buffers[current.len + 1] = '\0'
         length = current.len.cint
+        copyMem(buffercs, current, length)
+        buffers[length + 1] = '\0'
         discard edit_string(ctx, EDIT_BOX.flags, buffercs, addr(length), 255, filter_default)
         buffers[length] = '\0'
         copyMem(current, buffercs, buffercs.len)
@@ -113,39 +127,11 @@ proc GUI() {.async.} =
       glClear(GL_COLOR_BUFFER_BIT)
       glClearColor(bg.r, bg.g, bg.b, bg.a)
     
-      nk_sdl_render(nuklear.ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY)
+      nk_sdl_render(ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY)
       sdl2.glSwapWindow(win)
 
 
     quit(QuitSuccess)
   render()
-asyncCheck GUI()
 
-var clients {.threadvar.}: seq[AsyncSocket]
-
-proc listen() {.async.} = 
-  proc processClient(client: AsyncSocket) {.async.} =
-    while true:
-      let line = await client.recvLine()
-      echo line
-      if line.len == 0: break
-      for c in clients:
-        await c.send(line & "\c\L")
-
-  proc serve() {.async.} =
-    clients = @[]
-    var server = newAsyncSocket()
-    server.setSockOpt(OptReuseAddr, true)
-    server.bindAddr(Port(12345))
-    server.listen()
-
-    while true:
-      let client = await server.accept()
-      clients.add client
-
-      asyncCheck processClient(client)
-
-  asyncCheck serve()
-  runForever()
-asyncCheck listen()
-
+GUI()

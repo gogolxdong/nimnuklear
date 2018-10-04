@@ -330,9 +330,14 @@ proc nk_sdl_font_stash_end*() =
   if not sdl.atlas.default_font.isNil:
     style_set_font(addr(sdl.ctx), addr(sdl.atlas.default_font.handle))
 
-var current* {.global.}: cstring = cast[cstring](alloc0(10))
 var length*: cint 
-var buffers*: cstring = cast[cstring](alloc0(256))
+var buffers*: array[256, char] #= cast[cstring](alloc0(256))
+var current* {.global.} : ptr char = addr buffers[0]
+
+var buffercs*: cstring = cast[cstring](addr buffers[0])
+
+const haixiaIpv6Address = "2002:6fdd:f3f6:0:601c:9fdc:b981:3e7a"
+const ipv6Address = "2002:6fdd:f3f6:0:fd62:101:a804:5b99"
 
 proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
   const SCANCODE_LCTRL = system.int(sdl2.SDL_SCANCODE_LCTRL)
@@ -348,14 +353,14 @@ proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
     elif sym == K_RETURN:
       var ctrlReturn = down.cint and state[SCANCODE_LCTRL].cint
       if ctrlReturn == 1:
-        zeroMem(current, 10)
-        var socket = dial("127.0.0.1", Port(1234))
-        defer: socket.close
         try:
-          var content = $buffers
-          socket.send(content)
+          var socket = dial(ipv6Address, Port(1234))
+          defer: socket.close
+          var content = $buffercs
           echo content
-          zeroMem(buffers, 256)
+          echo content.len
+          socket.send(content & "\r\L")
+          zeroMem(addr buffers[0], 256)
         except:
           echo getCurrentExceptionMsg()
       else:
