@@ -1,7 +1,7 @@
 import nimnuklear/nuklear except true, false, char, int, PI
 import opengl, sdl2, sdl2/net, sdl2/mixer, sdl2/ttf
 
-import nuklear_sdl_gl3, roboto_regular
+import nuklear_sdl_gl3
 import asyncnet, asyncdispatch, strutils, nativesockets, threadpool, math
 
 var running = true
