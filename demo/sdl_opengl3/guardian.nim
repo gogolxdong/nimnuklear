@@ -10,9 +10,6 @@ if sdl2.init(INIT_EVERYTHING) != SdlSuccess:
   echo("Couldn't initialize SDL")
 defer: sdl2.quit()
 
-ttfInit()
-var font = openFont("msyh",28)
-
 proc listen() = 
   var clients : seq[AsyncSocket]
 
@@ -25,7 +22,7 @@ proc listen() =
   channel = mixer.openAudio(audio_rate, audio_format, audio_channels, audio_buffers) 
   if channel != 0:
     echo("Couldn't open audio device. " & $sdl2.getError())
-  var sound = loadWAV("sound.wav")
+  var sound = loadWAV("ios.wav")
   defer: freeChunk sound; mixer.closeAudio()
   if sound == nil :
     echo "nil chunk"
@@ -84,7 +81,7 @@ proc GUI() =
   discard sdl2.glSetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3)
   discard sdl2.glSetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3)
   discard sdl2.glSetAttribute(SDL_GL_DOUBLEBUFFER, 1)
-  win = sdl2.createWindow("Guardian", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+  win = sdl2.createWindow("守护者", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                           WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_ALLOW_HIGHDPI)
   glContext = sdl2.glCreateContext(win)
   win.getSize(win_width, win_height)
@@ -119,7 +116,7 @@ proc GUI() =
       input_end(ctx)
 
       ##  GUI
-      if begin(ctx, "Guardian".cstring,
+      if begin(ctx, "守护者".cstring,
                rect(x:50, y:50, w:800, h:600),
                flags(WINDOW_BORDER or WINDOW_MOVABLE or WINDOW_SCALABLE or WINDOW_MINIMIZABLE or WINDOW_TITLE or WINDOW_CLOSABLE)) == 1:
 
