@@ -356,8 +356,7 @@ proc nk_sdl_handle_event*(evt: ptr sdl2.Event): cint =
           var socket = dial(ipv6Address, Port(1234))
           defer: socket.close
           var content = $buffercs
-          echo buffers
-          socket.send(content & "\r\L")
+          socket.send(content)
           zeroMem(buffercs, buffercs.len)
         except:
           echo getCurrentExceptionMsg()

@@ -28,9 +28,8 @@ proc listen() =
     echo "nil chunk"
   proc processClient(client: AsyncSocket) {.async.} =
     while true:
-      let line = await client.recvLine()
+      let line = await client.recv(256)
       if line != "": 
-        echo line
         zeroMem(buffercs, buffercs.len)
         copyMem(addr buffers[0], line.cstring, line.len)
         if playChannel(-1, sound, 0) == -1:
