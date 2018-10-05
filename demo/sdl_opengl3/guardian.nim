@@ -1,44 +1,34 @@
 import nimnuklear/nuklear except true, false, char, int, PI
-import opengl, sdl2, sdl2/net, sdl2/audio
+import opengl, sdl2, sdl2/net, sdl2/mixer, sdl2/ttf
 
 import nuklear_sdl_gl3, roboto_regular
 import asyncnet, asyncdispatch, strutils, nativesockets, threadpool, math
 
 var running = true
-const RQBufferSizeInSamples = 4096
-const RQBytesPerSample = 2  
-const RQBufferSizeInBytes = RQBufferSizeInSamples * RQBytesPerSample
-let SampleRate = 44100    # Hz
-let Frequence = 1000      # Hz
-let Volume = 0.1        # [0..1]
-var x = 0
-var buffer : array[RQBufferSizeInBytes*16, float64] 
-var obtained : AudioSpec 
 
-let c = float(SampleRate) / float(Frequence)
-proc SineAmplitude() :float64 {.cdecl.} = round(sin(float(x mod int(c)) / c * 2 * PI) * 32767 * Volume) 
-proc AudioCallback_2(userdata: pointer; stream: ptr uint8; len: cint) {.cdecl.}=
-  for i in 0..obtained.samples.int16 - 1:
-    buffer[i] = SineAmplitude()
-    inc(x)
-  copyMem(stream, addr(buffer[0]), RQBytesPerSample*int16(obtained.samples))
+if sdl2.init(INIT_EVERYTHING) != SdlSuccess:
+  echo("Couldn't initialize SDL")
+defer: sdl2.quit()
+
+ttfInit()
+var font = openFont("msyh",28)
 
 proc listen() = 
   var clients : seq[AsyncSocket]
-  if init(INIT_AUDIO) != SdlSuccess:
-    echo("Couldn't initialize SDL")
-  var audioSpec: AudioSpec
-  audioSpec.freq = cint(SampleRate)
-  audioSpec.format = AUDIO_F32LSB 
-  audioSpec.channels = 2       
-  audioSpec.samples = RQBufferSizeInBytes
-  audioSpec.padding = 0
-  audioSpec.callback = AudioCallback_2
-  audioSpec.userdata = nil
-  if openAudio(addr(audioSpec), addr(obtained)) != 0:
+
+  var channel : cint
+  var audio_rate : cint
+  var audio_format : uint16
+  var audio_buffers : cint = 4096
+  var audio_channels : cint = 2
+  
+  channel = mixer.openAudio(audio_rate, audio_format, audio_channels, audio_buffers) 
+  if channel != 0:
     echo("Couldn't open audio device. " & $sdl2.getError())
-  if obtained.format != AUDIO_F32LSB:
-    echo("Couldn't open 32-bit audio channel.")
+  var sound = loadWAV("sound.wav")
+  defer: freeChunk sound; mixer.closeAudio()
+  if sound == nil :
+    echo "nil chunk"
   proc processClient(client: AsyncSocket) {.async.} =
     while true:
       let line = await client.recvLine()
@@ -46,9 +36,9 @@ proc listen() =
         echo line
         zeroMem(buffercs, buffercs.len)
         copyMem(addr buffers[0], line.cstring, line.len)
-        pauseAudio(0)
-        delay(10)
-        pauseAudio(1)
+        if playChannel(-1, sound, 0) == -1:
+          echo $sdl2.getError()
+
 
   proc serve() {.async.} =
     var server = newAsyncSocket(domain = AF_INET6)
@@ -66,6 +56,7 @@ proc listen() =
 spawn listen()
 
 proc GUI() = 
+  defer: nk_sdl_shutdown(); quit(QuitSuccess)
   const
     WINDOW_WIDTH = 1200
     WINDOW_HEIGHT = 800
@@ -88,7 +79,6 @@ proc GUI() =
   discard sdl2.setHint("SDL_VIDEO_HIGHDPI_DISABLED", "0")
   when not defined(vcc):
     discard sdl2.setHint("SDL_WINDOWS_DISABLE_THREAD_NAMING", "1")
-  sdl2.init(INIT_VIDEO or INIT_TIMER or INIT_EVENTS or INIT_AUDIO)
   discard sdl2.glSetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG)
   discard sdl2.glSetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE)
   discard sdl2.glSetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3)
@@ -103,12 +93,17 @@ proc GUI() =
   opengl.loadExtensions()
   glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT)
   ctx = nk_sdl_init(win)
-
+  
   var atlas: ptr font_atlas
-
   nk_sdl_font_stash_begin(addr(atlas))
-
+  var cfg = nk_font_config(16.0)
+  cfg.oversample_v = 1.cuchar
+  cfg.oversample_h = 1.cuchar
+  cfg.range = font_chinese_glyph_ranges()
+  var font = font_atlas_add_from_file(atlas, "Deng.ttf".cstring, 16.0, addr cfg)
   nk_sdl_font_stash_end()
+  style_set_font(ctx, addr font[].handle)
+
   bg.r = 0.1
   bg.g = 0.18
   bg.b = 0.24
@@ -150,7 +145,6 @@ proc GUI() =
           bg.a = propertyf(ctx, "#A:", 0, bg.a, 1.0, 0.01, 0.005)
           combo_end(ctx)
       nuklear.end(ctx)
-
       win.getSize(win_width, win_height)
       glViewport(0, 0, win_width, win_height)
       glClear(GL_COLOR_BUFFER_BIT)
@@ -158,9 +152,6 @@ proc GUI() =
     
       nk_sdl_render(ANTI_ALIASING_ON, MAX_VERTEX_MEMORY, MAX_ELEMENT_MEMORY)
       sdl2.glSwapWindow(win)
-
-
-    quit(QuitSuccess)
   render()
 GUI()
 

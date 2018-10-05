@@ -2161,8 +2161,7 @@ proc font_atlas_init_custom*(a2: ptr font_atlas; persistent: ptr allocator;
     importc: "nk_font_atlas_init_custom", header: headernuklear.}
 proc font_atlas_begin*(a2: ptr font_atlas) {.cdecl, importc: "nk_font_atlas_begin",
     header: headernuklear.}
-#proc font_config*(pixel_height: cfloat): font_config {.cdecl,
-#    importc: "struct nk_font_config", header: headernuklear.}
+proc new_font_config*(pixel_height: cfloat): font_config {.cdecl,importc: "nk_font_config", header: headernuklear.}
 proc font_atlas_add*(a2: ptr font_atlas; a3: ptr font_config): ptr font {.cdecl,
     importc: "nk_font_atlas_add", header: headernuklear.}
 proc font_atlas_add_default*(a2: ptr font_atlas; height: cfloat; a4: ptr font_config): ptr font {.
